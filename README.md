@@ -35,9 +35,12 @@ Ekran görüntüleri demo modundan alınmıştır.
 
 ## Hızlı başlangıç
 
-Node.js 20 ya da üstü gerekir.
+Node.js 20 ya da üstü gerekir. Arayüz YarganAPIService'ten ayrı bir repodur; aşağıdaki komutları
+bu reponun kök klasöründe (`package.json`'ın bulunduğu yerde) çalıştırın.
 
 ```bash
+git clone https://github.com/Harunn8/YarganUI.git
+cd YarganUI
 npm install
 
 # Backend olmadan, tarayıcı içi örnek verilerle (MSW):
@@ -56,17 +59,19 @@ olsa da yörüngeleri gerçek değildir.
 Geliştirme sunucusu istekleri `/svc/<servis>` önekiyle alır ve ilgili API'ye iletir. Varsayılan
 hedefler YarganAPIService'teki `launchSettings.json` **http** profilleridir:
 
-| Servis | Varsayılan | Ortam değişkeni |
-|---|---|---|
-| Device API | http://localhost:5098 | `DEVICE_API_URL` |
-| Rule API | http://localhost:5165 | `RULE_API_URL` |
-| Satops API | http://localhost:5131 | `SATOPS_API_URL` |
-| User API | http://localhost:5050 | `USER_API_URL` |
-| Login API | http://localhost:5002 | `LOGIN_API_URL` |
+| Servis | http profili (varsayılan) | https profili | Ortam değişkeni |
+|---|---|---|---|
+| Device API | http://localhost:5098 | https://localhost:7246 | `DEVICE_API_URL` |
+| Rule API | http://localhost:5165 | https://localhost:7286 | `RULE_API_URL` |
+| Satops API | http://localhost:5131 | https://localhost:7171 | `SATOPS_API_URL` |
+| User API | http://localhost:5050 | https://localhost:7042 | `USER_API_URL` |
+| Login API | http://localhost:5002 | https://localhost:7095 | `LOGIN_API_URL` |
 
-Farklı adresler için `.env.example` dosyasını `.env` olarak kopyalayıp düzenleyin. API'leri
-`https` profiliyle çalıştırırsanız HTTP isteklerini HTTPS'e yönlendirirler (307); bu durumda
-değişkenleri `https://localhost:<port>` olarak verin.
+API'leri `dotnet run` ile çalıştırırsanız http profili kullanılır ve ek ayar gerekmez. https
+profiliyle çalıştırırsanız (ör. Visual Studio'da "https" seçiliyse) API'ler HTTP isteklerini
+HTTPS'e yönlendirir (307) ve tarayıcı bu yönlendirmeyi engeller. Bu durumda `.env.example`
+dosyasını `.env` olarak kopyalayıp https satırlarının başındaki `#` işaretini kaldırın ve
+geliştirme sunucusunu yeniden başlatın.
 
 Tarayıcı tek origin gördüğü için API'lerde CORS ayarı gerekmez.
 
@@ -79,18 +84,19 @@ docker run -p 8080:80 --add-host=host.docker.internal:host-gateway yargan-ui
 
 İmaj nginx ile statik dosyaları sunar ve `/svc/*` isteklerini API'lere iletir
 (`nginx/default.conf.template`). Varsayılan hedefler `host.docker.internal` üzerindeki
-http portlarıdır. docker-compose içinde servis adlarıyla değiştirin:
+http portlarıdır. Aynı docker-compose içindeki API'ler için servis adını ve container içindeki
+portu verin. YarganAPIService'teki `docker-compose.yml`'de şu an yalnızca `ruleapi` ve
+`satopsapi` var ve ikisi de `ASPNETCORE_URLS=http://+:80` ile 80. portu dinliyor:
 
 ```yaml
 yarganui:
   image: yargan-ui
   ports: ["8080:80"]
+  extra_hosts: ["host.docker.internal:host-gateway"]
   environment:
-    DEVICE_API_URL: http://deviceapi:8080
-    RULE_API_URL: http://ruleapi:8080
-    SATOPS_API_URL: http://satopsapi:8080
-    USER_API_URL: http://userapi:8080
-    LOGIN_API_URL: http://loginapi:8080
+    RULE_API_URL: http://ruleapi
+    SATOPS_API_URL: http://satopsapi
+    # Device, User ve Login API compose'da yok; varsayılan olarak host'taki http portlarına gider.
 ```
 
 ## Komutlar
@@ -107,9 +113,12 @@ yarganui:
 
 ## Backend ile uyum
 
-Arayüz, Device API'deki çakışan rotaların ayrıştırıldığı sürümü bekler
-(YarganAPIService, `claude/gifted-mendel-lhjckg` dalı, commit `c4574dd`). O commit'ten önce
-`GET /api/Device` gibi uçlar `AmbiguousMatchException` ile 500 döner.
+Arayüz, YarganAPIService'teki
+[Harunn8/YarganAPIService#2](https://github.com/Harunn8/YarganAPIService/pull/2) değişikliklerini
+bekler. Bu PR merge edilmeden master'daki Device API'de rotalar çakışır (`GET /api/Device` gibi
+uçlar `AmbiguousMatchException` ile 500 döner) ve Device ekranı çalışmaz. Aynı PR, bitmiş bir
+geçiş varken Satops API'nin açılıştan ~10 saniye sonra kapanmasını ve servisler arası hatalı
+adresleri de düzeltir.
 
 Arayüz gerçek backend'e karşı uçtan uca test edildi. Aşağıdaki davranışlar backend'den
 kaynaklanır ve arayüzde görünür:
